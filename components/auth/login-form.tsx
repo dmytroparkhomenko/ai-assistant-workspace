@@ -1,35 +1,45 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Loader2, Mail, Lock } from "lucide-react"
-import Link from "next/link"
-import { signIn } from "@/lib/auth-actions"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Loader2, Mail, Lock } from "lucide-react";
+import Link from "next/link";
+import { signIn } from "@/lib/auth-actions";
 
 export default function LoginForm() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
-    const result = await signIn(formData)
+    const result = await signIn(formData);
 
     if (result?.error) {
-      setError(result.error)
-      setIsLoading(false)
+      setError(result.error);
+      setIsLoading(false);
     }
   }
 
   return (
     <Card className="w-full max-w-md bg-slate-900/50 border-slate-700 backdrop-blur-sm">
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold text-white">Welcome back</CardTitle>
-        <CardDescription className="text-slate-400">Sign in to your AI assistant dashboard</CardDescription>
+        <CardTitle className="text-2xl font-bold text-white">
+          Welcome back
+        </CardTitle>
+        <CardDescription className="text-slate-400">
+          Sign in to your AI assistant dashboard
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={handleSubmit} className="space-y-4">
@@ -88,13 +98,16 @@ export default function LoginForm() {
           </Button>
 
           <div className="text-center text-sm text-slate-400">
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-emerald-400 hover:text-emerald-300 hover:underline">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/auth/signup"
+              className="text-emerald-400 hover:text-emerald-300 hover:underline"
+            >
               Sign up
             </Link>
           </div>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,133 +1,180 @@
-"use client"
+"use client";
 
-import { useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Bold, Italic, Underline, List, ListOrdered, Quote, Code, Heading1, Heading2, Heading3 } from "lucide-react"
+import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+} from "lucide-react";
 
-interface RichTextEditorProps {
-  content: any
-  onChange: (content: any, plainText: string) => void
+interface TextMark {
+  type: "bold" | "italic" | "underline" | "code";
 }
 
-export default function RichTextEditor({ content, onChange }: RichTextEditorProps) {
-  const editorRef = useRef<HTMLDivElement>(null)
+interface TextNode {
+  type: "text";
+  text: string;
+  marks?: TextMark[];
+}
+
+interface ContentNode {
+  type:
+    | "paragraph"
+    | "heading"
+    | "bulletList"
+    | "orderedList"
+    | "listItem"
+    | "blockquote";
+  content?: (TextNode | ContentNode)[];
+  attrs?: { level?: number };
+}
+
+type Node = TextNode | ContentNode;
+
+interface RichTextContent {
+  type: "doc";
+  content: (TextNode | ContentNode)[];
+}
+
+interface RichTextEditorProps {
+  content: RichTextContent;
+  onChange: (content: RichTextContent, plainText: string) => void;
+}
+
+export default function RichTextEditor({
+  content,
+  onChange,
+}: RichTextEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editorRef.current && content) {
       // Simple rich text implementation
       // In a real app, you'd use a library like TipTap, Slate, or Draft.js
-      const plainText = extractPlainText(content)
+      const plainText = extractPlainText(content);
       if (editorRef.current.textContent !== plainText) {
-        editorRef.current.innerHTML = convertToHTML(content)
+        editorRef.current.innerHTML = convertToHTML(content);
       }
     }
-  }, [content])
+  }, [content]);
 
   const handleInput = () => {
     if (editorRef.current) {
-      const plainText = editorRef.current.textContent || ""
-      const htmlContent = editorRef.current.innerHTML
+      const plainText = editorRef.current.textContent || "";
+      const htmlContent = editorRef.current.innerHTML;
 
       // Convert HTML back to our content format
-      const newContent = convertFromHTML(htmlContent)
-      onChange(newContent, plainText)
+      const newContent = convertFromHTML(htmlContent);
+      onChange(newContent, plainText);
     }
-  }
+  };
 
   const applyFormat = (command: string, value?: string) => {
-    document.execCommand(command, false, value)
-    editorRef.current?.focus()
-    handleInput()
-  }
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    handleInput();
+  };
 
-  const extractPlainText = (content: any): string => {
-    if (!content || !content.content) return ""
+  const extractPlainText = (content: RichTextContent): string => {
+    if (!content || !content.content) return "";
 
-    let text = ""
-    const traverse = (node: any) => {
+    let text = "";
+    const traverse = (node: Node) => {
       if (node.type === "text") {
-        text += node.text || ""
+        text += node.text || "";
       } else if (node.content) {
-        node.content.forEach(traverse)
+        node.content.forEach(traverse);
       }
       if (node.type === "paragraph" || node.type === "heading") {
-        text += "\n"
+        text += "\n";
       }
-    }
+    };
 
-    content.content.forEach(traverse)
-    return text.trim()
-  }
+    content.content.forEach(traverse);
+    return text.trim();
+  };
 
-  const convertToHTML = (content: any): string => {
-    if (!content || !content.content) return ""
+  const convertToHTML = (content: RichTextContent): string => {
+    if (!content || !content.content) return "";
 
-    let html = ""
-    const traverse = (node: any) => {
+    let html = "";
+    const traverse = (node: Node) => {
       switch (node.type) {
         case "paragraph":
-          html += "<p>"
-          if (node.content) node.content.forEach(traverse)
-          html += "</p>"
-          break
+          html += "<p>";
+          if (node.content) node.content.forEach(traverse);
+          html += "</p>";
+          break;
         case "heading":
-          const level = node.attrs?.level || 1
-          html += `<h${level}>`
-          if (node.content) node.content.forEach(traverse)
-          html += `</h${level}>`
-          break
+          const level = node.attrs?.level || 1;
+          html += `<h${level}>`;
+          if (node.content) node.content.forEach(traverse);
+          html += `</h${level}>`;
+          break;
         case "text":
-          let text = node.text || ""
+          let text = node.text || "";
           if (node.marks) {
-            node.marks.forEach((mark: any) => {
+            node.marks.forEach((mark: TextMark) => {
               switch (mark.type) {
                 case "bold":
-                  text = `<strong>${text}</strong>`
-                  break
+                  text = `<strong>${text}</strong>`;
+                  break;
                 case "italic":
-                  text = `<em>${text}</em>`
-                  break
+                  text = `<em>${text}</em>`;
+                  break;
                 case "underline":
-                  text = `<u>${text}</u>`
-                  break
+                  text = `<u>${text}</u>`;
+                  break;
                 case "code":
-                  text = `<code>${text}</code>`
-                  break
+                  text = `<code>${text}</code>`;
+                  break;
               }
-            })
+            });
           }
-          html += text
-          break
+          html += text;
+          break;
         case "bulletList":
-          html += "<ul>"
-          if (node.content) node.content.forEach(traverse)
-          html += "</ul>"
-          break
+          html += "<ul>";
+          if (node.content) node.content.forEach(traverse);
+          html += "</ul>";
+          break;
         case "orderedList":
-          html += "<ol>"
-          if (node.content) node.content.forEach(traverse)
-          html += "</ol>"
-          break
+          html += "<ol>";
+          if (node.content) node.content.forEach(traverse);
+          html += "</ol>";
+          break;
         case "listItem":
-          html += "<li>"
-          if (node.content) node.content.forEach(traverse)
-          html += "</li>"
-          break
+          html += "<li>";
+          if (node.content) node.content.forEach(traverse);
+          html += "</li>";
+          break;
         case "blockquote":
-          html += "<blockquote>"
-          if (node.content) node.content.forEach(traverse)
-          html += "</blockquote>"
-          break
+          html += "<blockquote>";
+          if (node.content) node.content.forEach(traverse);
+          html += "</blockquote>";
+          break;
         default:
-          if (node.content) node.content.forEach(traverse)
+          // Handle any other node types that might have content
+          const contentNode = node as ContentNode;
+          if (contentNode.content) {
+            contentNode.content.forEach(traverse);
+          }
       }
-    }
+    };
 
-    content.content.forEach(traverse)
-    return html
-  }
+    content.content.forEach(traverse);
+    return html;
+  };
 
-  const convertFromHTML = (html: string): any => {
+  const convertFromHTML = (html: string): RichTextContent => {
     // Simple conversion - in a real app, you'd use a proper parser
     return {
       type: "doc",
@@ -142,8 +189,8 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
           ],
         },
       ],
-    }
-  }
+    };
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -250,5 +297,5 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
         suppressContentEditableWarning={true}
       />
     </div>
-  )
+  );
 }

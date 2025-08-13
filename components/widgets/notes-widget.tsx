@@ -1,57 +1,76 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Search, Star, StarOff, Brain, Clock, FileText, Trash2, Sparkles, BookOpen } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import type { Note } from "@/types/note"
-import { generateNoteAI } from "@/lib/ai-notes"
-import RichTextEditor from "./rich-text-editor"
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Plus,
+  Search,
+  Star,
+  StarOff,
+  Brain,
+  Clock,
+  FileText,
+  Trash2,
+  Sparkles,
+  BookOpen,
+  X,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { Note } from "@/types/note";
+import { generateNoteAI } from "@/lib/ai-notes";
+import RichTextEditor from "./rich-text-editor";
 
 interface NotesWidgetProps {
-  userId: string
+  userId: string;
 }
 
 export default function NotesWidget({ userId }: NotesWidgetProps) {
-  const [notes, setNotes] = useState<Note[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null)
-  const [isEditorOpen, setIsEditorOpen] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
-  const [showAiPanel, setShowAiPanel] = useState(false)
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
-  const supabase = createClient()
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>()
+  const supabase = createClient();
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
-  useEffect(() => {
-    fetchNotes()
-  }, [])
-
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("notes")
         .select("*")
         .eq("user_id", userId)
-        .order("updated_at", { ascending: false })
+        .order("updated_at", { ascending: false });
 
-      if (error) throw error
-      setNotes(data || [])
+      if (error) throw error;
+      setNotes(data || []);
     } catch (error) {
-      console.error("Error fetching notes:", error)
+      console.error("Error fetching notes:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, [supabase, userId]);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
 
   const createNote = async () => {
-    setIsCreating(true)
+    setIsCreating(true);
     try {
       const { data, error } = await supabase
         .from("notes")
@@ -59,103 +78,115 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
           {
             user_id: userId,
             title: "New Note",
-            content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }] },
+            content: {
+              type: "doc",
+              content: [
+                { type: "paragraph", content: [{ type: "text", text: "" }] },
+              ],
+            },
             plain_text: "",
           },
         ])
-        .select()
+        .select();
 
-      if (error) throw error
+      if (error) throw error;
 
       if (data) {
-        const newNote = data[0]
-        setNotes([newNote, ...notes])
-        setSelectedNote(newNote)
-        setIsEditorOpen(true)
+        const newNote = data[0];
+        setNotes([newNote, ...notes]);
+        setSelectedNote(newNote);
+        setIsEditorOpen(true);
       }
     } catch (error) {
-      console.error("Error creating note:", error)
+      console.error("Error creating note:", error);
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   const updateNote = useCallback(
     async (noteId: string, updates: Partial<Note>) => {
       try {
-        const { error } = await supabase.from("notes").update(updates).eq("id", noteId)
+        const { error } = await supabase
+          .from("notes")
+          .update(updates)
+          .eq("id", noteId);
 
-        if (error) throw error
+        if (error) throw error;
 
-        setNotes(notes.map((note) => (note.id === noteId ? { ...note, ...updates } : note)))
+        setNotes(
+          notes.map((note) =>
+            note.id === noteId ? { ...note, ...updates } : note
+          )
+        );
 
         if (selectedNote?.id === noteId) {
-          setSelectedNote({ ...selectedNote, ...updates })
+          setSelectedNote({ ...selectedNote, ...updates });
         }
       } catch (error) {
-        console.error("Error updating note:", error)
+        console.error("Error updating note:", error);
       }
     },
-    [notes, selectedNote, supabase],
-  )
+    [notes, selectedNote, supabase]
+  );
 
   const debouncedUpdate = useCallback(
     (noteId: string, updates: Partial<Note>) => {
       if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
+        clearTimeout(autoSaveTimeoutRef.current);
       }
 
       autoSaveTimeoutRef.current = setTimeout(() => {
-        updateNote(noteId, updates)
-      }, 1000) // Auto-save after 1 second of inactivity
+        updateNote(noteId, updates);
+      }, 1000); // Auto-save after 1 second of inactivity
     },
-    [updateNote],
-  )
+    [updateNote]
+  );
 
   const deleteNote = async (noteId: string) => {
     try {
-      const { error } = await supabase.from("notes").delete().eq("id", noteId)
+      const { error } = await supabase.from("notes").delete().eq("id", noteId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setNotes(notes.filter((note) => note.id !== noteId))
+      setNotes(notes.filter((note) => note.id !== noteId));
       if (selectedNote?.id === noteId) {
-        setSelectedNote(null)
-        setIsEditorOpen(false)
+        setSelectedNote(null);
+        setIsEditorOpen(false);
       }
     } catch (error) {
-      console.error("Error deleting note:", error)
+      console.error("Error deleting note:", error);
     }
-  }
+  };
 
   const toggleFavorite = async (noteId: string, isFavorite: boolean) => {
-    await updateNote(noteId, { is_favorite: !isFavorite })
-  }
+    await updateNote(noteId, { is_favorite: !isFavorite });
+  };
 
   const generateAISuggestions = async (content: string) => {
-    if (!content.trim()) return
+    if (!content.trim()) return;
 
     try {
-      const suggestions = await generateNoteAI(content)
-      setAiSuggestions(suggestions.suggestions || [])
-      setShowAiPanel(true)
+      const suggestions = await generateNoteAI(content);
+      setAiSuggestions(suggestions.suggestions || []);
+      setShowAiPanel(true);
     } catch (error) {
-      console.error("Error generating AI suggestions:", error)
+      console.error("Error generating AI suggestions:", error);
     }
-  }
+  };
 
   const filteredNotes = notes.filter(
     (note) =>
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.plain_text?.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+      note.plain_text?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,12 +201,26 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
           <Badge variant="secondary" className="bg-slate-700 text-slate-300">
             {notes.length} notes
           </Badge>
-          <Button onClick={createNote} disabled={isCreating} size="sm" className="bg-cyan-600 hover:bg-cyan-700">
+          <Button
+            onClick={createNote}
+            disabled={isCreating}
+            size="sm"
+            className="bg-cyan-600 hover:bg-cyan-700"
+          >
             {isCreating ? (
               <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
             ) : (
               <Plus className="h-4 w-4" />
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.close()}
+            className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/20"
+            title="Close widget"
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -199,30 +244,36 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
               key={note.id}
               className="p-3 rounded-lg border bg-slate-800/50 border-slate-700 hover:bg-slate-800/70 transition-all cursor-pointer"
               onClick={() => {
-                setSelectedNote(note)
-                setIsEditorOpen(true)
+                setSelectedNote(note);
+                setIsEditorOpen(true);
               }}
             >
               <div className="flex items-start justify-between mb-2">
-                <h4 className="font-medium text-white text-sm truncate flex-1">{note.title}</h4>
+                <h4 className="font-medium text-white text-sm truncate flex-1">
+                  {note.title}
+                </h4>
                 <div className="flex items-center gap-1 ml-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      toggleFavorite(note.id, note.is_favorite)
+                      e.stopPropagation();
+                      toggleFavorite(note.id, note.is_favorite);
                     }}
                     className="h-6 w-6 p-0 text-slate-400 hover:text-yellow-400"
                   >
-                    {note.is_favorite ? <Star className="h-3 w-3 fill-current" /> : <StarOff className="h-3 w-3" />}
+                    {note.is_favorite ? (
+                      <Star className="h-3 w-3 fill-current" />
+                    ) : (
+                      <StarOff className="h-3 w-3" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      deleteNote(note.id)
+                      e.stopPropagation();
+                      deleteNote(note.id);
                     }}
                     className="h-6 w-6 p-0 text-slate-400 hover:text-red-400"
                   >
@@ -231,7 +282,9 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
                 </div>
               </div>
 
-              <p className="text-slate-400 text-xs mb-2 line-clamp-2">{note.plain_text || "No content"}</p>
+              <p className="text-slate-400 text-xs mb-2 line-clamp-2">
+                {note.plain_text || "No content"}
+              </p>
 
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <div className="flex items-center gap-3">
@@ -271,7 +324,9 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
             <div className="text-center py-8">
               <BookOpen className="h-12 w-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400 text-sm">
-                {searchQuery ? "No notes found matching your search" : "No notes yet. Create your first note!"}
+                {searchQuery
+                  ? "No notes found matching your search"
+                  : "No notes yet. Create your first note!"}
               </p>
             </div>
           )}
@@ -288,9 +343,9 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
                   value={selectedNote?.title || ""}
                   onChange={(e) => {
                     if (selectedNote) {
-                      const newTitle = e.target.value
-                      setSelectedNote({ ...selectedNote, title: newTitle })
-                      debouncedUpdate(selectedNote.id, { title: newTitle })
+                      const newTitle = e.target.value;
+                      setSelectedNote({ ...selectedNote, title: newTitle });
+                      debouncedUpdate(selectedNote.id, { title: newTitle });
                     }
                   }}
                   className="bg-transparent border-none text-lg font-semibold text-white p-0 h-auto focus-visible:ring-0"
@@ -301,7 +356,10 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => selectedNote && generateAISuggestions(selectedNote.plain_text || "")}
+                  onClick={() =>
+                    selectedNote &&
+                    generateAISuggestions(selectedNote.plain_text || "")
+                  }
                   className="text-cyan-400 hover:text-cyan-300"
                 >
                   <Sparkles className="h-4 w-4 mr-1" />
@@ -317,9 +375,16 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
                 <RichTextEditor
                   content={selectedNote.content}
                   onChange={(content, plainText) => {
-                    const updatedNote = { ...selectedNote, content, plain_text: plainText }
-                    setSelectedNote(updatedNote)
-                    debouncedUpdate(selectedNote.id, { content, plain_text: plainText })
+                    const updatedNote = {
+                      ...selectedNote,
+                      content,
+                      plain_text: plainText,
+                    };
+                    setSelectedNote(updatedNote);
+                    debouncedUpdate(selectedNote.id, {
+                      content,
+                      plain_text: plainText,
+                    });
                   }}
                 />
               )}
@@ -330,7 +395,9 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
               <div className="w-80 bg-slate-900/50 rounded-lg p-4 border border-slate-700">
                 <div className="flex items-center gap-2 mb-3">
                   <Brain className="h-4 w-4 text-cyan-400" />
-                  <span className="text-sm font-medium text-white">AI Suggestions</span>
+                  <span className="text-sm font-medium text-white">
+                    AI Suggestions
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -342,7 +409,10 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
                 </div>
                 <div className="space-y-2">
                   {aiSuggestions.map((suggestion, index) => (
-                    <div key={index} className="p-2 bg-slate-800/50 rounded text-xs text-slate-300">
+                    <div
+                      key={index}
+                      className="p-2 bg-slate-800/50 rounded text-xs text-slate-300"
+                    >
                       {suggestion}
                     </div>
                   ))}
@@ -353,5 +423,5 @@ export default function NotesWidget({ userId }: NotesWidgetProps) {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

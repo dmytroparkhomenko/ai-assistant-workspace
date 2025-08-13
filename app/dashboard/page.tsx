@@ -1,16 +1,23 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import DashboardLayout from "@/components/dashboard/dashboard-layout"
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
 
 export default async function DashboardPage() {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const supabase = await createClient();
 
-  if (!user) {
-    redirect("/auth/login")
+  // Check if Supabase is properly configured
+  if (!supabase.auth) {
+    // If Supabase is not configured, redirect to login
+    redirect("/auth/login");
   }
 
-  return <DashboardLayout user={user} />
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  return <DashboardLayout user={user} />;
 }
